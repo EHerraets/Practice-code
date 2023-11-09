@@ -1,4 +1,4 @@
 # Practice-code
- Practice the code every week DS
- #hello word can you read this
+#hello word can you read this
+x <- (1, 2, 3, 4)
 
