@@ -1,6 +1,6 @@
 # Practice-code
 
-#01 introduction
+# 01 introduction
 CEO_Diary <- read.csv("~/Desktop/Data Science/GitHub/Data/survey_response_data.csv", header=FALSE)
 View(CEO_Diary)
 
