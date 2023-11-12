@@ -49,3 +49,4 @@ CEO_Diary$consultants <- as.numeric(CEO_Diary$consultants)
 CEO_Diary$politicians <- as.numeric(CEO_Diary$politicians)
 
 fit <- glm(strategy ~ consultants + politicians, data=CEO_Diary); summary(fit)
+
