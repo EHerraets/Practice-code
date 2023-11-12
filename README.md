@@ -60,6 +60,7 @@ fit <- glm(strategy ~ consultants + politicians, data=CEO_Diary); summary(fit)
 # 02 Uncertainty
 browser <- read.csv("~/Desktop/Data Science/GitHub/Data/web-browsers.csv", header=TRUE)
 dim(browser)
+#download the data set into R
 
 #Frequentist
 mean(browser$spend)
@@ -91,7 +92,7 @@ sqrt(var(browser$spend)/1e4)
     muc <- c(muc, mean(browser$spend[samp_c]))
   }
   sd(muc)
-# Big C is the times you loop the proces; for (c in 1:5) implies what you are going to loop; sample.int is the random sample you run; sd is the standard deviation; so if C is smaller the sd becomes smaller
+#Big C is the times you loop the proces; for (c in 1:5) implies what you are going to loop; sample.int is the random sample you run; sd is the standard deviation; so if C is smaller the sd becomes smaller
   
    D <- 10000
   mud <- c()
@@ -167,6 +168,59 @@ BR2 <- 10
   }; head(betas, n=3)
 #Have to set the DV in the log, otherwise you get way to high numbers
 
+#algorithm example 1
+browser2 <- read.csv("~/Desktop/Data Science/GitHub/Data/web-browsers.csv", header=TRUE)
 
+#Create 'figs' directory if it doesn't exist
+if (!file.exists("figs")) {
+  dir.create("figs")
+}
 
+spendy <- glm(log(spend) ~ . -id, data=browser2)
+#regression of spend (DV) on every other variable except id
+  round(summary(spendy)$coef,2)
+#round the variable up to 2 decimals
+  pval <- summary(spendy)$coef[-1, "Pr(>|t|)"]
+#giving the p values and  removes the first column (the intercept) from the summary that is shown
+  pvalrank <- rank(pval)
+#rank the p values so can compare the significance 
+  reject <- ifelse(pval< (0.1/9)*pvalrank, 2, 1) 
+#reject every p value that is less/lower than (0.1/9) * the rank. If the element is TRUE, indicating that the corresponding p-value is below the threshold, the corresponding element in reject is set to 2; if the element is FALSE, indicating that the corresponding p-value is not below the threshold, the corresponding element in reject is set to 1.
+  png(filename="/Users/ellenherraets/Desktop/Data Science/GitHub/Practice-code/figs/AlgoritmeE1.png",
+  width=600, height=350)
+#where to save the graph in my files 
+  plot(pvalrank, pval, ylab="p-value", xlab="p-value rank", pch=16, col=reject)
+#plotting the graph; on the y axis the p value and the x axis the rank of the p value. The color of each dot depends on if it was rejected or not
+  lines(pvalrank, (0.1/9)*pvalrank)
+#plot a line of the p value ranks
+  dev.off()
+
+#algorithm example 2
+SC <- read.csv("~/Desktop/Data Science/GitHub/Data/semiconductor.csv", header=TRUE)
+dim(SC)
+#download the data set into R; dim function is to set the dimensions of a object such as a matrix or an array; giving 1477 observation of 201 variable
+
+install.packages("logistf")
+install.packages("glmnet")
+full <- glm(FAIL ~ ., data=SC, family=binomial)
+#regression of fail to all the other variables of data set SC; familiy=bionomial is two possible outcomes 0 or 1
+pvals <- summary(full)$coef[-1,4] 
+
+#histogram example 2
+hist(pvals, xlab="p-value", main="Histo Algo 2", col="pink")
+
+#graph example 2
+fdr_cut <- function(pvals, q=0.1){
+  pvals <- sort(pvals[!is.na(pvals)])
+  N <- length(pvals)
+  k <- rank(pvals, ties.method="min")
+  alpha <- max(pvals[ pvals<= (q*k/(N+1)) ])
   
+  plot(pvals, log="xy", xlab="order", main=sprintf("FDR of %g",q),
+   ylab="p-value", bty="n", col=c(8,2)[(pvals<=alpha) + 1], pch=20)
+  lines(1:N, q*(1:N)/(N+1))
+
+  return(alpha)
+}
+fdr_cut(pvals)
+
