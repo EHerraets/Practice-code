@@ -26,7 +26,7 @@ View(CEO_Diary)
 #check working directory
  getwd()
  
-# Create 'figs' directory if it doesn't exist
+#Create 'figs' directory if it doesn't exist
 if (!file.exists("figs")) {
   dir.create("figs")
 }
