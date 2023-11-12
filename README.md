@@ -111,5 +111,62 @@ sqrt(var(browser$spend)/1e4)
   sd(mua)
 #replacing true with false, the sampling will now be without replacement -> each element is selected only once; sd is zero implies that all the samples means are identical; the data and sampling process reamin the same so you get the same set of 'random' variables. As a result the means calculated from these unique indices will be identical in each interation. 
 
+#making a histogram
+hb <- hist(mub)
+  xfit <- seq(min(mub), max(mub), length = 40) 
+  yfit <- dnorm(xfit, mean = mean(browser$spend), sd = sqrt(var(browser$spend)/1e4)) 
+  yfit <- yfit * diff(hb$mids[1:2]) * length(mub) 
+#creating histogram of spend; xfit is the min and max values of x axis; yfit creating the corresponding values of the y axis of the variables from the x axis; dnorm is normal distribution
+
+lines(xfit, yfit, col = "black", lwd = 2)
+#drawing a normal distribution line
+
+hc <- hist(muc)
+  xfit <- seq(min(muc), max(muc), length = 40) 
+  yfit <- dnorm(xfit, mean = mean(browser$spend), sd = sqrt(var(browser$spend)/1e4)) 
+  yfit <- yfit * diff(hc$mids[1:2]) * length(muc) 
+ 
+  lines(xfit, yfit, col = "red", lwd = 4)
+#col is color, lwd is the thickness of the line
+
+hd <- hist(mud)
+  xfit <- seq(min(mud), max(mud), length = 100) 
+  yfit <- dnorm(xfit, mean = mean(browser$spend), sd = sqrt(var(browser$spend)/1e4)) 
+  yfit <- yfit * diff(hd$mids[1:2]) * length(mud) 
+ 
+  lines(xfit, yfit, col = "orange", lwd = 0.5)
+
+#Bootstrapping regression
+ B <- 1000
+  betas <- c()
+  for (b in 1:1000){
+    samp_b <- sample.int(nrow(browser), replace=TRUE)
+    reg_b <- glm(log(spend) ~ broadband + anychildren, data=browser[samp_b,])
+    betas <- rbind(betas, coef(reg_b))
+  }; head(betas, n=3)
+  
+  cov(betas[,"broadband"],betas[,"anychildren"])
+  
+ BR <- 10
+  betas <- c()
+  for (br in 1:10){
+    samp_br <- sample.int(nrow(browser), replace=TRUE)
+    reg_br <- glm(log(spend) ~ broadband + anychildren, data=browser[samp_br,])
+    betas <- rbind(betas, coef(reg_br))
+  }; head(betas, n=3)
+  
+cov(betas[,"broadband"],betas[,"anychildren"])
+#making the loop smaller the cov is also becoming much smaller
+
+BR2 <- 10
+  betas <- c()
+  for (br2 in 1:10){
+    samp_br2 <- sample.int(nrow(browser), replace=TRUE)
+    reg_br2 <- glm(spend ~ broadband + anychildren, data=browser[samp_br2,])
+    betas <- rbind(betas, coef(reg_br2))
+  }; head(betas, n=3)
+#Have to set the DV in the log, otherwise you get way to high numbers
+
+
 
   
