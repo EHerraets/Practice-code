@@ -212,15 +212,19 @@ hist(pvals, xlab="p-value", main="Histo Algo 2", col="pink")
 #graph example 2
 fdr_cut <- function(pvals, q=0.1){
   pvals <- sort(pvals[!is.na(pvals)])
+#sorts on p-value and remoces NA values
   N <- length(pvals)
   k <- rank(pvals, ties.method="min")
   alpha <- max(pvals[ pvals<= (q*k/(N+1)) ])
+#calculates the threshold p value
   
   plot(pvals, log="xy", xlab="order", main=sprintf("FDR of %g",q),
+#plot the graph
    ylab="p-value", bty="n", col=c(8,2)[(pvals<=alpha) + 1], pch=20)
+#assigns color to dots whether the p-values is less or equal to alpha
   lines(1:N, q*(1:N)/(N+1))
-
+#adds a line to the plot represnting FDR threshold
   return(alpha)
 }
 fdr_cut(pvals)
-
+#test the false or postives among the rejected null hypotheses
