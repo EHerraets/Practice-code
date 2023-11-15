@@ -291,3 +291,5 @@ D <- summary(spammy)$deviance; D
 D0 <- summary(spammy)$null.deviance; D0
 R2 <- 1 - D/D0; R2
 #gives the R squared (how well the IV in the regression model explain the variablility  of the DV) => low R2 (close to 0) the model does not explain much of the variablility, high R2 (close to 1) does explain the variablility. In this model R2 is 75, this may considered high
+Dtest <- summary(spammy$deviance); D
+#now you get everything instead of only the deviance variable
