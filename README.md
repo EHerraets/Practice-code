@@ -358,5 +358,22 @@ for(k in 1:K){
 #cat function is to join together objects to the console -> you can print multiple objects. Here we want the print the number of k followed by a space 
  
 }
-
+colMeans(Out)
 boxplot(Out, col="plum", ylab="R2")
+
+
+#setup the experiment playing around with the code
+n <- nrow(SC)
+T <- 4
+foldid <- rep(1:T)[sample(1:n)]
+Test <- data.frame(full=rep(NA,T)) 
+for(k in 1:T){ 
+	train2 <- which(foldid!=t) 
+	rfull2 <- glm(FAIL~., data=SC, subset=train2, family=binomial)
+	predfull2 <- predict(rfull2, newdata=SC[-train2,], type="response")
+	Test$full[k] <- R2(y=SC$FAIL[-train2], pred=predfull2, family="binomial")
+	cat(k, " "); Test
+colmeans(Test)
+boxplot(Test, col="plum", ylab="R2")
+
+
