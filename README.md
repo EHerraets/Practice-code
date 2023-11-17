@@ -264,7 +264,7 @@ colnames(email)
 #gives all the column names of the dataset
 
 glm(spam ~ ., data=email, family='binomial')
-#linear model/regression of spam on every other variable, and makes family a binomial variable so it can be measured.
+#linear model/regression of spam on every other variable, and tells with family that the distribution is binomial (two possible outcomes) 
 
 spammy <- glm(spam ~ ., data=email, family='binomial')
 coef(spammy)["word_free"]; exp(coef(spammy)["word_free"])
@@ -293,3 +293,70 @@ R2 <- 1 - D/D0; R2
 #gives the R squared (how well the IV in the regression model explain the variablility  of the DV) => low R2 (close to 0) the model does not explain much of the variablility, high R2 (close to 1) does explain the variablility. In this model R2 is 75, this may considered high
 Dtest <- summary(spammy$deviance); D
 #now you get everything instead of only the deviance variable
+
+# 04 Regularization
+SC <- read.csv("~/Desktop/Data Science/GitHub/Data/semiconductor.csv", header=TRUE)
+full <- glm(FAIL ~ ., data=SC, family=binomial)
+1 - full$deviance/full$null.deviance
+
+#out of sample prediction experiment
+deviance <- function(y, pred, family=c("gaussian","binomial")){
+#makes a function of the observed variables (y), the predicted values (pred) and makes a vector of the distribution which will be normal or binomial
+ family <- match.arg(family)
+#selects the variables in the right distribution either gaussian or binomial
+ if(family=="gaussian"){
+ return( sum( (y-pred)^2 ) )
+ }else{
+#if the distribution is gaussian the function will return the sum of squared (observed values - predicted values) -> so predicts if this model is a good fit to the data
+ if(is.factor(y)) y <- as.numeric(y)>1
+#checks if the binomial is a factor or numeric value. When it is a factor, it changes it in a numeric value (either 0 or 1). So it can be measured.
+ return( -2*sum( y*log(pred) + (1-y)*log(1-pred) ) )
+#calculate the (log) likelihood contribution for each observation. because the observed value (y) is 0 or 1 you have to use y and the 1-y function, otherwise the predicts values of the observed value of 0 will not be considered into the formula. 
+ }
+}
+#will do the same steps for the 0 deviance
+R2 <- function(y, pred, family=c("gaussian","binomial")){
+ fam <- match.arg(family)
+ if(fam=="binomial"){
+ if(is.factor(y)){ y <- as.numeric(y)>1 }
+ }
+#checks if the binomial is a factor or numeric value. When it is a factor, it changes it in a numeric value (either 0 or 1). So it can be measured.
+ dev <- deviance(y, pred, family=fam)
+ dev0 <- deviance(y, mean(y), family=fam)
+ return(1-dev/dev0)
+#calculates the R squared with the deviance and the null deviance calculated above
+
+#setup the experiment
+n <- nrow(SC) 
+#the number of observations
+K <- 10 
+#the number of `folds'=> divided the data set into 10 roughly equal parts/folds
+
+foldid <- rep(1:K,each=ceiling(n/K))[sample(1:n)]
+#repeat the values of the folders 1 to K (10) and the ceiling explain how many times it should be repeated -> n/K is that it is repeated enough times that all the variables (n) are covered. and sample randomly assigns the order of the fold
+
+Out <- data.frame(full=rep(NA,K))
+#creates a data frame with 1 column names full and the values of the vector NA,K which is a vector of K length and each element/row is empty 
+
+for(k in 1:K){ 
+#create loop from 1 to number of folds
+
+ train <- which(foldid!=k) 
+#train on all but fold `k'
+
+ rfull <- glm(FAIL~., data=SC, subset=train, family=binomial)
+#regression of fail on all variables, where you only use the data from subset train
+ 
+
+ predfull <- predict(rfull, newdata=SC[-train,], type="response")
+#predict the values of the regression rfull, from which the data was not in the data set train and give the predicted values back in the probabilities (type=response)
+
+ Out$full[k] <- R2(y=SC$FAIL[-train], pred=predfull, family="binomial")
+#the data frame 'out' column 'full' fold 'k' <- R2 is the R squared variable we calculated before, the observed values (y) are in the dataset SC column 'fail' excluding the training set observation; pred is the predicted probabilites for the validation set; with a binomial distribution.
+
+ cat(k, " ")
+#cat function is to join together objects to the console -> you can print multiple objects. Here we want the print the number of k followed by a space 
+ 
+}
+
+boxplot(Out, col="plum", ylab="R2")
