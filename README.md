@@ -377,3 +377,49 @@ colmeans(Test)
 boxplot(Test, col="plum", ylab="R2")
 
 
+null <- glm(FAIL~1, data=SC)
+#regression only for the intercepts and without predictor variables
+fwd <- step(null, scope=formula(full), dir="forward")
+#forward stepwise regression 
+length(coef(fwd))
+
+null2 <- glm(FAIL~1, data=SC)
+bwd <- step(null2, scope=formula(full), dir="backward")
+length(coef(bwd))
+null3 <- glm(FAIL~1, data=SC)
+bothwd <- step(null2, scope=formula(full), dir="both")
+length(coef(bothwd))
+#
+
+
+library(gamlr)
+web <-read.csv("~/Desktop/Data Science/GitHub/Data/browser-domains.csv", header=TRUE)
+sitenames <- scan("~/Desktop/Data Science/GitHub/Data/browser-sites.txt", what = "character")
+web$site <- factor(web$site, levels=1:length(sitenames), labels=sitenames)
+web$id <- factor(web$id, levels=1:length(unique(web$id)))
+machinetotals <- as.vector(tapply(web$visits,web$id,sum)) 
+visitpercent <- 100*web$visits/machinetotals[web$id]
+xweb <- sparseMatrix(
+	i=as.numeric(web$id), j=as.numeric(web$site), x=visitpercent,
+	dims=c(nlevels(web$id),nlevels(web$site)),
+	dimnames=list(id=levels(web$id), site=levels(web$site)))
+yspend <- read.csv("~/Desktop/Data Science/GitHub/Data/browser-totalspend.csv", row.names=1)  
+yspend <- as.matrix(yspend)
+
+spender <- gamlr(xweb, log(yspend), verb=TRUE); spender
+#
+
+plot(spender)
+#
+
+cv.spender <- cv.gamlr(xweb, log(yspend))
+plot(cv.spender)
+#
+
+betamin = coef(cv.spender, select="min"); betamin
+#
+
+head(AIC(spender))
+#
+
+
