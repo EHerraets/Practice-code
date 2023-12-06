@@ -386,15 +386,17 @@ length(coef(fwd))
 null2 <- glm(FAIL~1, data=SC)
 bwd <- step(null2, scope=formula(full), dir="backward")
 length(coef(bwd))
+#backward stepwise regression
 null3 <- glm(FAIL~1, data=SC)
 bothwd <- step(null2, scope=formula(full), dir="both")
 length(coef(bothwd))
-#
+#both directions stepwise regression
 
-
+install.packages("gamlr")
 library(gamlr)
 web <-read.csv("~/Desktop/Data Science/GitHub/Data/browser-domains.csv", header=TRUE)
 sitenames <- scan("~/Desktop/Data Science/GitHub/Data/browser-sites.txt", what = "character")
+#incidates/scans the data which variable are character and makes a vector of it in sitenames
 web$site <- factor(web$site, levels=1:length(sitenames), labels=sitenames)
 web$id <- factor(web$id, levels=1:length(unique(web$id)))
 machinetotals <- as.vector(tapply(web$visits,web$id,sum)) 
@@ -403,6 +405,7 @@ xweb <- sparseMatrix(
 	i=as.numeric(web$id), j=as.numeric(web$site), x=visitpercent,
 	dims=c(nlevels(web$id),nlevels(web$site)),
 	dimnames=list(id=levels(web$id), site=levels(web$site)))
+
 yspend <- read.csv("~/Desktop/Data Science/GitHub/Data/browser-totalspend.csv", row.names=1)  
 yspend <- as.matrix(yspend)
 
