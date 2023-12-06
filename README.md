@@ -396,33 +396,40 @@ install.packages("gamlr")
 library(gamlr)
 web <-read.csv("~/Desktop/Data Science/GitHub/Data/browser-domains.csv", header=TRUE)
 sitenames <- scan("~/Desktop/Data Science/GitHub/Data/browser-sites.txt", what = "character")
-#incidates/scans the data which variable are character and makes a vector of it in sitenames
+#incidates/scans the data which variable are character and makes a vector of it in sitenames -> it succesfully read 1000 items
 web$site <- factor(web$site, levels=1:length(sitenames), labels=sitenames)
+#signs the site from the database web as a factor. It assigns the factor to the right sitename label
 web$id <- factor(web$id, levels=1:length(unique(web$id)))
+#creates the similar thing as the previous line but now for the variable id
 machinetotals <- as.vector(tapply(web$visits,web$id,sum)) 
+#vector with corresponding sum of the visitis with every specific website id
 visitpercent <- 100*web$visits/machinetotals[web$id]
+#vector with the percentages of the previous code line
 xweb <- sparseMatrix(
 	i=as.numeric(web$id), j=as.numeric(web$site), x=visitpercent,
 	dims=c(nlevels(web$id),nlevels(web$site)),
 	dimnames=list(id=levels(web$id), site=levels(web$site)))
+#matrix containing the vectorvisitpercent. the rows corresponend to id and columns correspond to site
 
 yspend <- read.csv("~/Desktop/Data Science/GitHub/Data/browser-totalspend.csv", row.names=1)  
 yspend <- as.matrix(yspend)
+#value yspend will be replaced with a matrix representation
 
-spender <- gamlr(xweb, log(yspend), verb=TRUE); spender
-#
+spender <- gamlr(xweb, log(yspend), verb=TRUE)
+#gives the relationship between xweb and the logaritm of yspend
 
 plot(spender)
-#
+#plot the value spender
 
 cv.spender <- cv.gamlr(xweb, log(yspend))
 plot(cv.spender)
-#
+#gives the cross-validation results 
 
-betamin = coef(cv.spender, select="min"); betamin
-#
+betamin = coef(cv.spender, select="min")
+#betamin contain the coefficients of the gam corresponding to the model complexity -> perfomed the best terms of cross-validated
 
 head(AIC(spender))
-#
+#a lower AIC value indicate better fitting model. with the values I can decide/ make a decision between model fit and complexity
 
 
+# 05 Classification
