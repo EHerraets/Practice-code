@@ -433,3 +433,125 @@ head(AIC(spender))
 
 
 # 05 Classification
+
+install.packages("MASS")
+library(MASS)
+data(fgl)
+dim(fgl)
+#214 rows and 10 columns
+ head(fgl, n = 2)
+#shows values of first tow rows of fgl dataset
+
+par(mfrow=c(2,3))
+plot(RI ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Al ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Na ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Mg ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Ba ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Si ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+#plotting the different tipes 
+
+x <- scale(fgl[,1:9]) 
+#column 10 is class label, scale converts to mean 0 sd 1
+apply(x,2,sd) 
+#apply function sd to columns of x
+
+library(class) 
+#has knn function
+test <- sample(1:214,10) 
+#draws a random sample of 10 rows
+nearest1 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=1) 
+#this vector will contain the predicted class labels for the test set
+nearest2 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=2)
+nearest3 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=3)
+nearest4 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=4)
+nearest5 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=5)
+#creating a vector for 5 others
+data.frame(fgl$type[test],nearest1,nearest2, nearest3, nearest4, nearest5)
+#shows in a data frame the 5 different knns with of the 10 different rows
+
+credit <- read.csv("~/Desktop/Data Science/GitHub/Data/credit.csv", header = TRUE)
+credit$history = factor(credit$history, levels=c("A30","A31","A32","A33","A34"))
+#history variable in the credit data set will be converted to a factor
+levels(credit$history) = c("good","good","poor","poor","terrible")
+#will give the history factor variable different 'scores' 
+credit$foreign <- factor(credit$foreign, levels=c("A201","A202"), labels=c("foreign","german"))
+#factor vector of the foreign in the credit data set, levels are set to A201 or A202 with corresponding labels foreign and german
+credit$rent <- factor(credit$housing=="A151")
+#factor vector variable for the rent -> will show each observation that is in the category A151 of the housing variable with the label TRUE otherwise it gets the label FALSE
+credit$purpose <- factor(credit$purpose, levels=c("A40","A41","A42","A43","A44","A45","A46","A47","A48","A49","A410"))
+#the purpose variable in the data set credit will be converted to the levels
+levels(credit$purpose) <- c("newcar","usedcar",rep("goods/repair",4),"edu",NA,"edu","biz","biz")
+#now the purpuse variable is updated to new/different levels
+credit <- credit[,c("Default", "duration", "amount",
+                    "installment", "age", "history",
+                    "purpose", "foreign", "rent")]
+#data set will be modified to include only the columns listed
+
+head(credit)
+#shows the first few rows of the dataset
+dim(credit)
+#data set obtains 1000 rows and 9 columns
+
+library(gamlr)
+credx <- sparse.model.matrix(Default ~ . ^ 2, data=naref(credit)); colnames(credx)
+#sparse matrix representation of credit model
+
+default <- credit$Default
+#variable contain the values of default column
+credscore <- cv.gamlr(credx, default, family="binomial")
+#cross-validation performance of regression -> gives information of the cross-validated performance ot hte model
+
+par(mfrow=c(1,2))
+#plots displayed side by side
+plot(credscore$gamlr)
+plot(credscore)
+#displays the different plots
+
+sum(coef(credscore, s="min")!=0)
+sum(coef(credscore$gamlr)!=0)
+sum(coef(credscore$gamlr, s=which.min(AIC(credscore$gamlr)))!=0) 
+
+1 - credscore$cvm[credscore$seg.min]/credscore$cvm[1]
+
+
+pred <- predict(credscore$gamlr, credx, type="response")
+pred <- drop(pred) # remove the sparse Matrix formatting
+boxplot(pred ~ default, xlab="default", ylab="prob of default", col=c("pink","dodgerblue"))
+
+rule <- 1/5 # move this around to see how these change
+sum( (pred>rule)[default==0] )/sum(pred>rule) ## false positive rate at 1/5 rule
+
+sum( (pred<rule)[default==1] )/sum(pred<rule) ## false negative rate at 1/5 rule
+
+uit rmd halen
+
+uit rmd halen
+
+library(glmnet)
+xfgl <- sparse.model.matrix(type~.*RI, data=fgl)[,-1] #Design matrix includes chemical composition variab gtype <- fgl$type
+glassfit <- cv.glmnet(xfgl, gtype, family="multinomial") #cross validation experiments
+glassfit
+
+plot(glassfit)
+
+
+par(mfrow=c(2,3), mai=c(.6,.6,.4,.4))
+plot(glassfit$glm, xvar="lambda")
+
+B <- coef(glassfit, select="min"); B ## extract coefficients
+
+
+uit rmd halen
+
+
+probfgl <- predict(glassfit, xfgl, type="response"); dim(probfgl); head(probfgl,n=2); tail(probfgl,n=2)
+
+
+#gives in-sample probabilities. Note: this is nXKX1 array. Need nXK array. To convert:
+probfgl <- drop(probfgl); #use dim(probfgl) to check dim is 214 by 6
+n <- nrow(xfgl)
+trueclassprobs <- probfgl[cbind(1:n, gtype)]; head(trueclassprobs,n=3); tail(trueclassprobs,n=3)
+
+uit rmd halen
+
