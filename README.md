@@ -617,3 +617,229 @@ plot(trueclassprobs ~ gtype, col="lavender", varwidth=TRUE,
 	xlab="glass type", ylab="prob( true class )") 
 #plot
 
+# 06 Controls part 1
+oj <- read.csv("../Data/oj.csv")
+basefit <- lm(log(sales) ~ log(price), data=oj)
+coef(basefit)
+
+brandfit <- lm(log(sales) ~ brand + log(price), data=oj)
+coef(brandfit)
+
+pricereg <- lm(log(sales) ~ brand, data=oj)
+phat <- predict(pricereg, newdata=oj)
+presid <- log(oj$price) - phat
+residfit <- lm(log(sales) ~ presid, data=oj)
+coef(basefit)
+
+summary(orig <- glm(y ~ d + t + s +., data=controls) )$coef['d',]
+dcoef <- summary(orig <- glm(y ~ d + t + s +., data=controls) )$coef['d',][1]
+exp(dcoef) - 1
+
+rmd halen
+
+phone <- cellrate[ t + 1 ]
+tech <- summary(glm(y ~ phone + t + s +., data=controls))$coef['phone',]
+phonecoef <- tech[1]
+exp(phonecoef) - 1
+
+t <- factor(t)
+interact <- glm(y ~ d + t + phone*s + .^2, data=controls)
+summary(interact)$coef["d",]
+
+library(gamlr)
+## refactor state to have NA reference level
+sna <- factor(s, levels=c(NA,levels(s)), exclude=NULL)
+x <- sparse.model.matrix( ~ t + phone*sna + .^2, data=controls)[,-1]
+dim(x)
+
+naive <- cv.gamlr(cbind(d,x),y); head(coef(naive))
+
+coef(naive)["d",]
+
+treat <- cv.gamlr(x,d, lmr=1e-3); head(summary(treat))
+predtreat <- predict(treat, x, select="min"); head(predtreat)
+dhat <- drop(predtreat); length(dhat)
+
+par(mai=c(.9,.9,.1,.1))
+plot(dhat,d,bty="n",pch=21,bg=8, cex=.8, yaxt="n")
+axis(2, at=c(0,1,2,3))
+
+cor(drop(dhat),d)^2
+coef(summary( glm( y ~ d + dhat) ))
+causal <- cv.gamlr(cbind(d,dhat,x),y,free=2,lmr=1e-3)
+coef(causal, select="min")["d",]
+
+library(gamlr)
+data(hockey)
+head(goal, n=2)
+player[1:2, 2:7] #players on ice. +1 is home players. 0 is off ice.
+team[1, 2:6] #Sparse Matrix with indicators for each team*season interaction: +1 for home team, -1 for awa
+config[5:6, 2:7] #Special teams info. For example, S5v4 is a 5 on 4 powerplay, +1 if it is for the home-
+
+x <- cbind(config,team,player)
+y <- goal$homegoal
+fold <- sample.int(2,nrow(x),replace=TRUE)
+head(fold)
+
+nhlprereg <- gamlr(x[fold==1,], y[fold==1],
+ free=1:(ncol(config)+ncol(team)),
+ family="binomial", standardize=FALSE)
+selected <- which(coef(nhlprereg)[-1,] != 0)
+xnotzero <- as.data.frame(as.matrix(x[,selected]))
+nhlmle <- glm( y ~ ., data=xnotzero,
+ subset=which(fold==2), family=binomial )
+
+summary(nhlmle)
+
+x[1,x[1,]!=0] #check first observation for players on the ice
+fit <- predict(nhlmle, xnotzero[1,,drop=FALSE], type="response", se.fit=TRUE)$fit; fit
+se.fit <- predict(nhlmle, xnotzero[1,,drop=FALSE], type="response", se.fit=TRUE)$se.fit; se.fit
+CI = fit + c(-2,2)*se.fit
+CI #90% confidence interval for probability that Edmonton scored the goal is
+ 
+# 06 Controls part 2
+
+library(AER)
+library(gamlr)
+dreg <- function(x,d){ cv.gamlr(x, d, lmr=1e-5) }
+yreg <- function(x,y){ cv.gamlr(x, y, lmr=1e-5) }
+
+# Orthogonal ML R Function
+orthoLTE <- function(x, d, y, dreg, yreg, nfold=2)
+{
+ # randomly split data into folds
+ nobs <- nrow(x)
+ foldid <- rep.int(1:nfold,
+ times = ceiling(nobs/nfold))[sample.int(nobs)]
+ I <- split(1:nobs, foldid)
+ # create residualized objects to fill
+ ytil <- dtil <- rep(NA, nobs)
+ # run OOS orthogonalizations
+ cat("fold: ")
+ for(b in 1:length(I)){
+ dfit <- dreg(x[-I[[b]],], d[-I[[b]]])
+ yfit <- yreg(x[-I[[b]],], y[-I[[b]]])
+ dhat <- predict(dfit, x[I[[b]],], type="response")
+ yhat <- predict(yfit, x[I[[b]],], type="response")
+ dtil[I[[b]]] <- drop(d[I[[b]]] - dhat)
+ ytil[I[[b]]] <- drop(y[I[[b]]] - yhat)
+ cat(b," ")
+ }
+ rfit <- lm(ytil ~ dtil)
+ gam <- coef(rfit)[2]
+ se <- sqrt(vcovHC(rfit)[2,2])
+ cat(sprintf("\ngamma (se) = %g (%g)\n", gam, se))
+ return( list(gam=gam, se=se, dtil=dtil, ytil=ytil) )
+ 
+ # OrthoML and effect of abortion access on crime
+resids <- orthoLTE( x=x, d=d, y=y,
+ dreg=dreg, yreg=yreg, nfold=5)
+head(resids$dtil)
+head(resids$ytil)
+2*pnorm(-abs(resids$gam)/resids$se) #p-value supports no effect of abortion access on crime
+
+rmd file
+
+#data has been cleaned in the background
+head(P,n=3)
+dim(P)
+
+ybar <- tapply(P$doc_any_12m, P$selected, mean)
+( ATE = ybar['1'] - ybar['0'] )
+nsel <- table(P[,c("selected")])
+yvar <- tapply(P$doc_any_12m, P$selected, var)
+( seATE = sqrt(sum(yvar/nsel)) )
+ATE + c(-2,2)*seATE
+lin <- glm(doc_any_12m ~ selected + numhh, data=P);
+round( summary(lin)$coef["selected",],4) # 6-7% increase in prob
+
+levels(X$edu_12m)
+source("naref.R")
+levels(naref(X$edu_12m))
+X <- naref(X) #makes NA the base group
+
+xnum <- X[,sapply(X,class)%in%c("numeric","integer")]
+xnum[66:70,]
+colSums(is.na(xnum))
+xnumna <- apply(is.na(xnum), 2, as.numeric)
+xnumna[66:70,]
+
+#impute the missing values
+mzimpute <- function(v){
+ if(mean(v==0,na.rm=TRUE) > 0.5) impt <- 0
+ else impt <- mean(v, na.rm=TRUE)
+ v[is.na(v)] <- impt
+ return(v) }
+xnum <- apply(xnum, 2, mzimpute)
+xnum[66:70,]
+
+#replace/add the variables in new data frame
+for(v in colnames(xnum)){
+ X[,v] <- xnum[,v]
+ X[,paste(v,"NA", sep=".")] <- xnumna[,v] }
+X[144:147,]
+
+xhte <- sparse.model.matrix(~., data=cbind(numhh=P$numhh, X))[,-1]
+xhte[1:2,1:4]
+dim(xhte)
+
+dxhte <- P$selected*xhte
+colnames(dxhte) <- paste("d",colnames(xhte), sep=".")
+htedesign <- cbind(xhte,d=P$selected,dxhte)
+#include the numhh controls and baseline treatment without penalty
+htefit <- gamlr(x=htedesign, y=P$doc_any_12m, free=c("numhh2","numhh3+","d"))
+gam <- coef(htefit)[-(1:(ncol(xhte)+1)), ]
+round(sort(gam)[1:6],4)
+
+round(sort(gam, decreasing=TRUE)[1:6],4)
+
+load("../Data/dominicks-beer.rda")
+head(wber)
+wber = wber[sample(nrow(wber), 100000), ]
+head(upc)
+dim(upc)
+wber$lp <- log(12*wber$PRICE/upc[wber$UPC,"OZ"]) #ln price per 12 ounces
+
+coef( margfit <- lm(log(MOVE) ~ lp, data=wber[,]) )
+
+wber$s <- factor(wber$STORE); wber$u <- factor(wber$UPC); wber$w <- factor(wber$WEEK)
+xs <- sparse.model.matrix( ~ s-1, data=wber); xu <- sparse.model.matrix( ~ u-1, data=wber); xw <- sparse.m
+# parse the item description text as a bag o' words
+library(tm)
+descr <- Corpus(VectorSource(as.character(upc$DESCRIP)))
+descr <- DocumentTermMatrix(descr)
+descr <- sparseMatrix(i=descr$i,j=descr$j,x=as.numeric(descr$v>0), # convert from stm to Matrix format
+ dims=dim(descr),dimnames=list(rownames(upc),colnames(descr)))
+descr[1:5,1:6]
+#als code neit klopt check rmd
+
+descr[287,descr[287,]!=0]
+controls <- cbind(xs, xu, xw, descr[wber$UPC,])
+dim(controls) 
+
+#naive lasso
+naivefit <- gamlr(x=cbind(lp=wber$lp,controls)[,], y=log(wber$MOVE), free=1, standardize=FALSE)
+print( coef(naivefit)[1:2,] )
+
+#orthogonal ML
+resids <- orthoLTE( x=controls, d=wber$lp, y=log(wber$MOVE), dreg=dreg, yreg=yreg, nfold=5)
+
+#interact items and text with price
+#lpxu <- xu*wber$lp
+#colnames(lpxu) <- paste("lp",colnames(lpxu),sep="")
+#create our interaction matrix
+xhte <- cbind(BASELINE=1,descr[wber$UPC,])
+d <- xhte*wber$lp
+colnames(d) <- paste("lp",colnames(d),sep=":")
+eachbeer <- xhte[match(rownames(upc),wber$UPC),]
+rownames(eachbeer) <- rownames(upc)
+#fullhte
+lnwberMOVE <- log(wber[['MOVE']])
+fullhte <- gamlr(x=cbind(d,controls), y=lnwberMOVE, lambda.start=0)
+#gamfull <- coef(fullhte)[2:(ncol(lpxu)+1),]
+gamfull <- drop(eachbeer%*%coef(fullhte)[2:(ncol(d)+1),])
+
+coef(fullhte)
+
+hist(gamfull, main="", xlab="elasticity", col="darkgrey", freq=FALSE)
+
