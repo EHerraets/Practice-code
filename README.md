@@ -509,49 +509,111 @@ plot(credscore)
 #displays the different plots
 
 sum(coef(credscore, s="min")!=0)
+#calculate the count of non-zero coefficients in the model, which are 85
 sum(coef(credscore$gamlr)!=0)
-sum(coef(credscore$gamlr, s=which.min(AIC(credscore$gamlr)))!=0) 
+#calculate the count of non-zero coefficients in the regression model, which are 90
+sum(coef(credscore$gamlr, s=which.min(AIC(credscore$gamlr)))!=0)
+#calculate the count of non-zero coefficients in the regression model and minimizes the AIC > select the model with the best fit and complexity, here it is 140
 
 1 - credscore$cvm[credscore$seg.min]/credscore$cvm[1]
-
+#?? outcome is 0.1827528
 
 pred <- predict(credscore$gamlr, credx, type="response")
-pred <- drop(pred) # remove the sparse Matrix formatting
+#calculates the predicted values for the new data provided in credx
+pred <- drop(pred) 
+#removes the sparse Matrix formatting
 boxplot(pred ~ default, xlab="default", ylab="prob of default", col=c("pink","dodgerblue"))
+#plot
 
-rule <- 1/5 # move this around to see how these change
-sum( (pred>rule)[default==0] )/sum(pred>rule) ## false positive rate at 1/5 rule
+rule <- 1/5 
+rule2 <- 1/87 
+rule3 <- 1/456 
+#gives the outcome of this equation
+sum( (pred>rule)[default==0] )/sum(pred>rule) 
+#false positive rate at 1/5 rule, 0.5379538
+sum( (pred<rule)[default==1] )/sum(pred<rule) 
+#false negative rate at 1/5 rule, 0.05076142
 
-sum( (pred<rule)[default==1] )/sum(pred<rule) ## false negative rate at 1/5 rule
+sum( (pred>rule2)[default==0] )/sum(pred>rule2) 
+#false positive rate at 1/87 rule, 0.7
+sum( (pred<rule2)[default==1] )/sum(pred<rule2) 
+#false negative rate at 1/87 rule, NaN?
 
-uit rmd halen
+sum( (pred>rule3)[default==0] )/sum(pred>rule3) 
+#false positive rate at 1/456 rule, 0.7
+sum( (pred<rule3)[default==1] )/sum(pred<rule3) 
+#false negative rate at 1/456 rule, NaN?
 
-uit rmd halen
+sum( (pred>rule)[default==1] )/sum(default==1) 
+#sensitivity (the ability of model to correcly indentify true positives), 0.9333333
+sum( (pred>rule2)[default==1] )/sum(default==1) 
+#sensitivity, 1
+sum( (pred>rule3)[default==1] )/sum(default==1) 
+#sensitivity, 1
 
+sum( (pred<rule)[default==0] )/sum(default==0) 
+#specificity (the ability of modle to cerrecly indentify true negatives), 0.5342857 
+sum( (pred<rule2)[default==0] )/sum(default==0) 
+#specificity, 0
+sum( (pred<rule3)[default==0] )/sum(default==0) 
+#specificity, 0
+
+test <- sample.int(1000,500)
+#generates random sample of 500 between 1 and 1000
+credhalf <- gamlr(credx[-test,], default[-test], family="binomial")
+#regresion
+predoos <- predict(credhalf, credx[test,], type="response")
+#predictions generated out of sample data using the previous regression
+defaultoos <- default[test]
+#vector with true labels for the out-of-sample data
+
+install.packages("glmnet")
 library(glmnet)
-xfgl <- sparse.model.matrix(type~.*RI, data=fgl)[,-1] #Design matrix includes chemical composition variab gtype <- fgl$type
-glassfit <- cv.glmnet(xfgl, gtype, family="multinomial") #cross validation experiments
-glassfit
+xfgl <- sparse.model.matrix(type~.*RI, data=fgl)[,-1] 
+#Design matrix includes chemical composition variable
+gtype <- fgl$type
+glassfit <- cv.glmnet(xfgl, gtype, family="multinomial") 
+#cross validation experiments glassfit
 
 plot(glassfit)
-
-
 par(mfrow=c(2,3), mai=c(.6,.6,.4,.4))
 plot(glassfit$glm, xvar="lambda")
+#plots
 
-B <- coef(glassfit, select="min"); B ## extract coefficients
+B <- coef(glassfit, select="min") 
+#extract coefficients
+B <- do.call(cbind, B) 
+colnames(B) <- levels(gtype) 
+#column names dropped in previous command. This command adds them back.
 
+DeltaBMg <- B["Mg", "WinNF"] - B["Mg", "WinF"]; DeltaBMg 
+#Represent the difference between the element in the Mg row and WinNF column and the element in the Mg row and WinF in matrix B, which is -0.44 
+exp(DeltaBMg);
+#represent the odds of the event, which is 0.64
+1 - exp(DeltaBMg)
+#represent the odds of the complementary event, which is 0.36
 
-uit rmd halen
+probfgl <- predict(glassfit, xfgl, type="response") 
+#matrix where each row corresponds to an observation and column correspons to a class -> variable gives the predicted probability for each class for each observation
+dim(probfgl)
+#gives the number of rows 214and colums 6, and there is one layer
+head(probfgl,n=2)
+#gives the first 2 observations
+tail(probfgl,n=2)
+#gives the last 2 observations
 
-
-probfgl <- predict(glassfit, xfgl, type="response"); dim(probfgl); head(probfgl,n=2); tail(probfgl,n=2)
-
-
-#gives in-sample probabilities. Note: this is nXKX1 array. Need nXK array. To convert:
-probfgl <- drop(probfgl); #use dim(probfgl) to check dim is 214 by 6
+probfgl <- drop(probfgl)
+#remove other dimensions -> only 1 dimension left
 n <- nrow(xfgl)
-trueclassprobs <- probfgl[cbind(1:n, gtype)]; head(trueclassprobs,n=3); tail(trueclassprobs,n=3)
+#calculates the number of rows in the matrix
+trueclassprobs <- probfgl[cbind(1:n, gtype)]
+#vector containing the predicted probabilities of the true classs for each observation
+head(trueclassprobs,n=3)
+##gives the first 3 observations
+tail(trueclassprobs,n=3)
+#gives the last 3 observations
 
-uit rmd halen
+plot(trueclassprobs ~ gtype, col="lavender", varwidth=TRUE,
+	xlab="glass type", ylab="prob( true class )") 
+#plot
 
