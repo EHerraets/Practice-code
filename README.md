@@ -729,34 +729,45 @@ causal <- cv.gamlr(cbind(d,dhat,x),y,free=2,lmr=1e-3)
 coef(causal, select="min")["d",]
 #coefficient of the treatment variable d from the penalized logistic regression, which is 0.018
 
-#hiergebleven
 library(gamlr)
 data(hockey)
 head(goal, n=2)
-player[1:2, 2:7] #players on ice. +1 is home players. 0 is off ice.
-team[1, 2:6] #Sparse Matrix with indicators for each team*season interaction: +1 for home team, -1 for awa
-config[5:6, 2:7] #Special teams info. For example, S5v4 is a 5 on 4 powerplay, +1 if it is for the home-
+#information about goal hometeam, season, away team name, home team name, game period, goal differential and indicator for playoffs
+player[1:2, 2:7] 
+#players on ice. +1 is home players. 0 is off ice.
+team[1, 2:6] 
+#shows the different teams in that season
+config[5:6, 2:7] 
+#sparse matrix of the team formation, . for not true, 1 for true
 
 x <- cbind(config,team,player)
+#matrix of these variables combined
 y <- goal$homegoal
+#takes the variables of the homegoal column out of the goal data set and puts it into vector y
 fold <- sample.int(2,nrow(x),replace=TRUE)
+#creates vector that assigns each observation in the data set (randomly) to one or two fold for cross validation
 head(fold)
+#shows the first observations of the vector fold
 
-nhlprereg <- gamlr(x[fold==1,], y[fold==1],
- free=1:(ncol(config)+ncol(team)),
- family="binomial", standardize=FALSE)
+nhlprereg <- gamlr(x[fold==1,], y[fold==1],free=1:(ncol(config)+ncol(team)), family="binomial", standardize=FALSE)
+#fitting penalized logistic regression of the training set, fitted to the subset of the design matrix x where fold=1 and response variable is y
 selected <- which(coef(nhlprereg)[-1,] != 0)
+#shows non-zero coefficients in the fitted model above
 xnotzero <- as.data.frame(as.matrix(x[,selected]))
-nhlmle <- glm( y ~ ., data=xnotzero,
- subset=which(fold==2), family=binomial )
-
+#new data frame that only contains the values of the matrix x corresponding to the selected non-zero coefficients
+nhlmle <- glm( y ~ ., data=xnotzero, subset=which(fold==2), family=binomial)
+#regression to test fold2 using the nonzero dataframe
 summary(nhlmle)
+#gives the intercept, standard deviation, t value, and significanty level
 
-x[1,x[1,]!=0] #check first observation for players on the ice
+x[1,x[1,]!=0] 
+#check first observation for players on the ice, which elements are non-zero in the first row of matrix x and return those values
 fit <- predict(nhlmle, xnotzero[1,,drop=FALSE], type="response", se.fit=TRUE)$fit; fit
+#predicted probabilities for the first observation in the new data frame xnotzero ???, which is 0.47
 se.fit <- predict(nhlmle, xnotzero[1,,drop=FALSE], type="response", se.fit=TRUE)$se.fit; se.fit
-CI = fit + c(-2,2)*se.fit
-CI #90% confidence interval for probability that Edmonton scored the goal is
+#gives the standard error for predicted probabilites of the first observation in the new data frame xnotzero, which is 0.06
+CI = fit + c(-2,2)*se.fit; CI
+#lower bound of the confidence interval is 0.354 and the upper bound of the confidence interval is 0.599
  
 # 06 Controls part 2
 
