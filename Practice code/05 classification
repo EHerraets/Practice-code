@@ -1,0 +1,184 @@
+# 05 Classification
+
+install.packages("MASS")
+library(MASS)
+data(fgl)
+dim(fgl)
+#214 rows and 10 columns
+ head(fgl, n = 2)
+#shows values of first tow rows of fgl dataset
+
+par(mfrow=c(2,3))
+plot(RI ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Al ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Na ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Mg ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Ba ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+plot(Si ~ type, data=fgl, col=c(grey(.2),2:6), las=2)
+#plotting the different tipes 
+
+x <- scale(fgl[,1:9]) 
+#column 10 is class label, scale converts to mean 0 sd 1
+apply(x,2,sd) 
+#apply function sd to columns of x
+
+library(class) 
+#has knn function
+test <- sample(1:214,10) 
+#draws a random sample of 10 rows
+nearest1 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=1) 
+#this vector will contain the predicted class labels for the test set
+nearest2 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=2)
+nearest3 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=3)
+nearest4 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=4)
+nearest5 <- knn(train=x[-test,], test=x[test,], cl=fgl$type[-test], k=5)
+#creating a vector for 5 others
+data.frame(fgl$type[test],nearest1,nearest2, nearest3, nearest4, nearest5)
+#shows in a data frame the 5 different knns with of the 10 different rows
+
+credit <- read.csv("~/Desktop/Data Science/GitHub/Data/credit.csv", header = TRUE)
+credit$history = factor(credit$history, levels=c("A30","A31","A32","A33","A34"))
+#history variable in the credit data set will be converted to a factor
+levels(credit$history) = c("good","good","poor","poor","terrible")
+#will give the history factor variable different 'scores' 
+credit$foreign <- factor(credit$foreign, levels=c("A201","A202"), labels=c("foreign","german"))
+#factor vector of the foreign in the credit data set, levels are set to A201 or A202 with corresponding labels foreign and german
+credit$rent <- factor(credit$housing=="A151")
+#factor vector variable for the rent -> will show each observation that is in the category A151 of the housing variable with the label TRUE otherwise it gets the label FALSE
+credit$purpose <- factor(credit$purpose, levels=c("A40","A41","A42","A43","A44","A45","A46","A47","A48","A49","A410"))
+#the purpose variable in the data set credit will be converted to the levels
+levels(credit$purpose) <- c("newcar","usedcar",rep("goods/repair",4),"edu",NA,"edu","biz","biz")
+#now the purpuse variable is updated to new/different levels
+credit <- credit[,c("Default", "duration", "amount",
+                    "installment", "age", "history",
+                    "purpose", "foreign", "rent")]
+#data set will be modified to include only the columns listed
+
+head(credit)
+#shows the first few rows of the dataset
+dim(credit)
+#data set obtains 1000 rows and 9 columns
+
+library(gamlr)
+credx <- sparse.model.matrix(Default ~ . ^ 2, data=naref(credit)); colnames(credx)
+#sparse matrix representation of credit model
+
+default <- credit$Default
+#variable contain the values of default column
+credscore <- cv.gamlr(credx, default, family="binomial")
+#cross-validation performance of regression -> gives information of the cross-validated performance ot hte model
+
+par(mfrow=c(1,2))
+#plots displayed side by side
+plot(credscore$gamlr)
+plot(credscore)
+#displays the different plots
+
+sum(coef(credscore, s="min")!=0)
+#calculate the count of non-zero coefficients in the model, which are 85
+sum(coef(credscore$gamlr)!=0)
+#calculate the count of non-zero coefficients in the regression model, which are 90
+sum(coef(credscore$gamlr, s=which.min(AIC(credscore$gamlr)))!=0)
+#calculate the count of non-zero coefficients in the regression model and minimizes the AIC > select the model with the best fit and complexity, here it is 140
+
+1 - credscore$cvm[credscore$seg.min]/credscore$cvm[1]
+#?? outcome is 0.1827528
+
+pred <- predict(credscore$gamlr, credx, type="response")
+#calculates the predicted values for the new data provided in credx
+pred <- drop(pred) 
+#removes the sparse Matrix formatting
+boxplot(pred ~ default, xlab="default", ylab="prob of default", col=c("pink","dodgerblue"))
+#plot
+
+rule <- 1/5 
+rule2 <- 1/87 
+rule3 <- 1/456 
+#gives the outcome of this equation
+sum( (pred>rule)[default==0] )/sum(pred>rule) 
+#false positive rate at 1/5 rule, 0.5379538
+sum( (pred<rule)[default==1] )/sum(pred<rule) 
+#false negative rate at 1/5 rule, 0.05076142
+
+sum( (pred>rule2)[default==0] )/sum(pred>rule2) 
+#false positive rate at 1/87 rule, 0.7
+sum( (pred<rule2)[default==1] )/sum(pred<rule2) 
+#false negative rate at 1/87 rule, NaN?
+
+sum( (pred>rule3)[default==0] )/sum(pred>rule3) 
+#false positive rate at 1/456 rule, 0.7
+sum( (pred<rule3)[default==1] )/sum(pred<rule3) 
+#false negative rate at 1/456 rule, NaN?
+
+sum( (pred>rule)[default==1] )/sum(default==1) 
+#sensitivity (the ability of model to correcly indentify true positives), 0.9333333
+sum( (pred>rule2)[default==1] )/sum(default==1) 
+#sensitivity, 1
+sum( (pred>rule3)[default==1] )/sum(default==1) 
+#sensitivity, 1
+
+sum( (pred<rule)[default==0] )/sum(default==0) 
+#specificity (the ability of modle to cerrecly indentify true negatives), 0.5342857 
+sum( (pred<rule2)[default==0] )/sum(default==0) 
+#specificity, 0
+sum( (pred<rule3)[default==0] )/sum(default==0) 
+#specificity, 0
+
+test <- sample.int(1000,500)
+#generates random sample of 500 between 1 and 1000
+credhalf <- gamlr(credx[-test,], default[-test], family="binomial")
+#regresion
+predoos <- predict(credhalf, credx[test,], type="response")
+#predictions generated out of sample data using the previous regression
+defaultoos <- default[test]
+#vector with true labels for the out-of-sample data
+
+install.packages("glmnet")
+library(glmnet)
+xfgl <- sparse.model.matrix(type~.*RI, data=fgl)[,-1] 
+#Design matrix includes chemical composition variable
+gtype <- fgl$type
+glassfit <- cv.glmnet(xfgl, gtype, family="multinomial") 
+#cross validation experiments glassfit
+
+plot(glassfit)
+par(mfrow=c(2,3), mai=c(.6,.6,.4,.4))
+plot(glassfit$glm, xvar="lambda")
+#plots
+
+B <- coef(glassfit, select="min") 
+#extract coefficients
+B <- do.call(cbind, B) 
+colnames(B) <- levels(gtype) 
+#column names dropped in previous command. This command adds them back.
+
+DeltaBMg <- B["Mg", "WinNF"] - B["Mg", "WinF"]; DeltaBMg 
+#Represent the difference between the element in the Mg row and WinNF column and the element in the Mg row and WinF in matrix B, which is -0.44 
+exp(DeltaBMg);
+#represent the odds of the event, which is 0.64
+1 - exp(DeltaBMg)
+#represent the odds of the complementary event, which is 0.36
+
+probfgl <- predict(glassfit, xfgl, type="response") 
+#matrix where each row corresponds to an observation and column correspons to a class -> variable gives the predicted probability for each class for each observation
+dim(probfgl)
+#gives the number of rows 214and colums 6, and there is one layer
+head(probfgl,n=2)
+#gives the first 2 observations
+tail(probfgl,n=2)
+#gives the last 2 observations
+
+probfgl <- drop(probfgl)
+#remove other dimensions -> only 1 dimension left
+n <- nrow(xfgl)
+#calculates the number of rows in the matrix
+trueclassprobs <- probfgl[cbind(1:n, gtype)]
+#vector containing the predicted probabilities of the true classs for each observation
+head(trueclassprobs,n=3)
+##gives the first 3 observations
+tail(trueclassprobs,n=3)
+#gives the last 3 observations
+
+plot(trueclassprobs ~ gtype, col="lavender", varwidth=TRUE,
+	xlab="glass type", ylab="prob( true class )") 
+#plot
